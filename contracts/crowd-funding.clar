@@ -73,3 +73,33 @@
               (ok "Refund successful"))
             (err "Project is already successful or has been refunded"))
         (err "Project not found"))))
+
+(define-public (claim-milestone (project-title (string-ascii 100)) (milestone-index uint))
+  (let ((project (map-get? projects project-title)))
+    (if project
+        (if (and (get is-successful project)
+                 (< milestone-index (len (get milestone-payments project)))
+                 (not (get (tuple-get 2 (nth milestone-index (get milestone-payments project))) project)))
+                 (is-eq tx-sender (contract-of)))
+            (let ((updated-milestone-payments
+                   (map-set (get milestone-payments project)
+                           milestone-index
+                           (tuple (tuple-get 0 (nth milestone-index (get milestone-payments project)))
+                                  (tuple-get 1 (nth milestone-index (get milestone-payments project)))
+                                  true))))
+              (let ((updated-project (contract-of
+                                      (funded-amount (get funded-amount project))
+                                      (funding-goal (get funding-goal project))
+                                      (backers (get backers project))
+                                      (project-title (get project-title project))
+                                      (description (get description project))
+                                      (rewards (get rewards project))
+                                      (deadline (get deadline project))
+                                      (milestone-payments updated-milestone-payments)
+                                      (is-successful true)
+                                      (is-refunded false))))
+                (map-insert projects project-title updated-project)
+                (stx-transfer? (tuple-get 1 (nth milestone-index (get milestone-payments project))) tx-sender (contract-of))
+                (ok "Milestone claimed")))
+            (err "Milestone cannot be claimed"))
+        (err "Project not found"))))
