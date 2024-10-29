@@ -34,3 +34,21 @@
                             (is-refunded false))))
       (map-insert projects project-title project-details)
       (ok project-title))))
+
+(define-public (back-project (project-title (string-ascii 100)) (amount uint))
+  (let ((project (map-get? projects project-title)))
+    (if project
+        (let ((updated-project (contract-of
+                                (funded-amount (+ (get funded-amount project) amount))
+                                (funding-goal (get funding-goal project))
+                                (backers (cons tx-sender (get backers project)))
+                                (project-title (get project-title project))
+                                (description (get description project))
+                                (rewards (get rewards project))
+                                (deadline (get deadline project))
+                                (milestone-payments (get milestone-payments project))
+                                (is-successful (>= (get funded-amount project) (get funding-goal project)))
+                                (is-refunded false)))))
+          (map-insert projects project-title updated-project)
+          (stx-transfer? amount tx-sender (contract-of)))
+        (err "Project not found"))))
